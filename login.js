@@ -1,4 +1,3 @@
-const opn = require('opn')
 const Nightmare = require('nightmare')
 const nightmare = Nightmare({show:true})
 const express = require('express')
@@ -18,7 +17,7 @@ server.listen(port, async ()=>{
   console.log(`listening on port ${port}`)
   try{
     passcode = await waitForCode()
-    console.log(passcode)
+    enterPasscode(passcode)
   }catch(err){
     console.log(err)
   }
@@ -30,7 +29,7 @@ server.get('/:code', (req,res)=>{
   passcode = req.params.code
 })
 
-// initialLogin()
+initialLogin()
 
 function initialLogin(){
   nightmare
@@ -42,21 +41,41 @@ function initialLogin(){
     .wait('#security-passcode')
     .click('#security-passcode')
     .click('#passcode-contact2')
-    .type('body', '\u000d') //"press enter" equiv
-    .evaluate(waitForCode)
-    .type(passcode, '#user-password')
     .type('body', '\u000d')
+    .wait('#dont-remember-browser')
+    .then(()=>{
+      console.log(
+        'now at the pass code login'
+      )
+    })
+    .catch(err=>console.log(err))
+}
+
+function enterPasscode(code){
+  nightmare
+    .goto('https://bank.bbt.com/auth/kba.tb')
+    .click('#dont-remember-browser')
+    .type(code, '#user-password')
+    .type('body', '\u000d')
+    .wait('#acct-balance')
+    .evaluate(()=>{
+      return document.querySelector('#acct-balance').innerHTML
+    })
+    .then(balance=>{
+      console.log(balance)
+    })
     .catch(err=>{
       console.error('failed.', err)
     })
 }
 
-function openBrowser(){
-  return new Promise(function(resolve, reject) {
-    opn('http://localhost:3000/')
-    resolve()
+/*function acctBalance(){
+  return new Promise((resolve, reject)=>{
+    let balance = document.querySelector('#acct-balance')
+    if(balance) resolve(balance)
+    else reject('failed')
   });
-}
+}*/
 
 function waitForCode(){
   return new Promise((resolve, reject)=>{
@@ -65,6 +84,7 @@ function waitForCode(){
       if(passcode === undefined){
         console.log('waiting for passcode...')
       }else{
+        console.log('passcode resolved')
         resolve(passcode)
       }
     }, 1000) // check every 1 sec. for code input
